@@ -101,16 +101,6 @@ thread_init (void)
   initial_thread->tid = allocate_tid ();
 }
 
-/*Returns true if the priority of p1 es greater than p2's priority*/
-
-bool
-thread_compare_priority(struct list_elem* p1, struct list_elem* p2, void* aux) 
-{
-  struct thread* first = list_entry(p1, struct thread, elem);
-  struct thread* second = list_entry(p2, struct thread, elem);
-  return first->priority > second->priority;
-}
-
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
 void
@@ -145,25 +135,22 @@ thread_tick (void)
   else
     kernel_ticks++;
 
- 	enum intr_level prev = intr_disable();
+	enum intr_level prev = intr_disable();
 
 	while(!list_empty(get_sleep_list())) {
- 		// printf("lista: %d\n", list_size(get_sleep_list()));
-  	struct thread *first = list_entry(list_begin(get_sleep_list()), struct thread, elem);
+		struct thread *first = list_entry(list_begin(get_sleep_list()), struct thread, sleepelem);
 		int sum = kernel_ticks+user_ticks+idle_ticks;
 		int sleep_ticks = first->sleep_ticks;
-  	// printf("SLEEP_TICKS: %d\n", sleep_ticks);
-  	// printf("SUM: %d\n", sum);
-  	if(sleep_ticks <= sum) {
+		if(sleep_ticks <= sum) {
 			list_pop_front(get_sleep_list());
 			first->sleep_ticks = 0;
 			thread_unblock(first);
-  	} else {
-    	break;
-  	}
+		} else {
+			break;
+		}
 	}
 
- 	intr_set_level(prev);
+	intr_set_level(prev);
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -174,7 +161,6 @@ thread_tick (void)
 void
 thread_print_stats (void) 
 {
-
   printf ("Thread: %lld idle ticks, %lld kernel ticks, %lld user ticks\n",
           idle_ticks, kernel_ticks, user_ticks);
 }
@@ -232,11 +218,6 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  
-  /*reschedule the current thread's priority is minor than the new thread's priority*/
-  if(thread_current()->priority < priority) {
-    thread_yield();
-  }
 
   return tid;
 }
@@ -274,8 +255,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered(&ready_list, &t->elem, thread_compare_priority, NULL);
-  //list_push_back (&ready_list, &t->elem);
+  list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -346,8 +326,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered(&ready_list, &cur->elem, thread_compare_priority, NULL);
-    //list_push_back (&ready_list, &cur->elem);
+    list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -375,7 +354,6 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -383,13 +361,6 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
-}
-
-void 
-thread_donate_priority (struct thread* t) 
-{
-  enum intr_level old_level = intr_disable();
-
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -509,13 +480,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->aux_priority = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
-  list_insert_ordered(&all_list, &t->allelem, thread_compare_priority, NULL);
-  list_init(&t->blocks);
-  //list_push_back (&all_list, &t->allelem);
+  list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 }
 

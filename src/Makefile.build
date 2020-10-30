@@ -24,7 +24,7 @@ threads_SRC += threads/malloc.c		# Subpage allocator.
 
 # Device driver code.
 devices_SRC  = devices/pit.c		# Programmable interrupt timer chip.
-devices_SRC += devices/sleep.c  # My Sleep
+devices_SRC += devices/sleep.c		# sleep device.
 devices_SRC += devices/timer.c		# Periodic timer device.
 devices_SRC += devices/kbd.c		# Keyboard device.
 devices_SRC += devices/vga.c		# Video device.

@@ -88,7 +88,7 @@ sleeper (void *test_)
     {
       int64_t sleep_until = test->start + i * 10;
       timer_sleep (sleep_until - timer_ticks ());
-      *test->output_pos++ = timer_ticks () - test->start;//comentado un ++ en el output_pos++
+      *test->output_pos++ = timer_ticks () - test->start;
       thread_yield ();
     }
 }

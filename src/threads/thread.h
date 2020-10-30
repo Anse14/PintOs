@@ -4,7 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-// #include "devices/sleep.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -89,13 +88,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int aux_priority;
     struct list_elem allelem;           /* List element for all threads list. */
-    struct list blocks;
     int64_t sleep_ticks;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    struct list_elem sleepelem;         /* Sleep List element. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -136,13 +135,10 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
-void thread_donate_priority(struct thread*);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
-bool thread_compare_priority(struct list_elem*, struct list_elem*, void*);
 
 #endif /* threads/thread.h */

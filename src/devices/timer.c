@@ -4,7 +4,6 @@
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
-#include <kernel/list.h>
 #include "devices/pit.h"
 #include "threads/interrupt.h"
 #include "threads/synch.h"
@@ -18,8 +17,6 @@
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
-
-// struct list sleep_threads = LIST_INITIALIZER(sleep_threads);
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
@@ -88,17 +85,14 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-bool 
-thread_compare_wakeup(struct list_elem *p1, struct list_elem *p2, void *aux) 
-{
-  struct thread *first = list_entry(p1, struct thread, elem);
-  struct thread *second = list_entry(p2, struct thread, elem);
+bool thread_compare_wakeup(struct list_elem *p1, struct list_elem *p2, void *aux) {
+	struct thread *first = list_entry(p1, struct thread, sleepelem);
+	struct thread *second = list_entry(p2, struct thread, sleepelem);
 	if(first->sleep_ticks == second->sleep_ticks) {
-  	return first->priority > second->priority;
+  		return first->priority > second->priority;
 	} else {
-  	return first->sleep_ticks < second->sleep_ticks;
+  		return first->sleep_ticks < second->sleep_ticks;
 	}
-  // return first->priority > second->priority;
 }
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
@@ -107,15 +101,18 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
+
   ASSERT (intr_get_level () == INTR_ON);
   // while (timer_elapsed (start) < ticks) 
-  //   thread_yield ();
-	struct thread *actual = thread_current ();//obtiene el thread actual
-	actual->sleep_ticks = start + ticks;//se setea el momento de despertar para el thread que pondremos a dormir
- 	enum intr_level prev = intr_disable ();//
-	list_insert_ordered (get_sleep_list (), &actual->elem, thread_compare_wakeup, NULL);
-	// printf("LIST: %d\n", list_size(get_sleep_list()));
+    // thread_yield ();
+	struct thread *actual = thread_current ();
+	actual->sleep_ticks = start + ticks;
+
+ 	enum intr_level prev = intr_disable ();
+	list_insert_ordered(get_sleep_list (), &actual->sleepelem, thread_compare_wakeup, NULL);
+
 	thread_block ();
+
  	intr_enable ();
 }
 

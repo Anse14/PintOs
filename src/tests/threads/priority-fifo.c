@@ -49,7 +49,7 @@ test_priority_fifo (void)
   output = op = malloc (sizeof *output * THREAD_CNT * ITER_CNT * 2);
   ASSERT (output != NULL);
   lock_init (&lock);
-  printf("hello there!\n");
+
   thread_set_priority (PRI_DEFAULT + 2);
   for (i = 0; i < THREAD_CNT; i++) 
     {
