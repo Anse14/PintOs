@@ -359,7 +359,7 @@ sub cyl_sectors {
 # Makes sure that the loader is a reasonable size.
 sub read_loader {
     my ($name) = @_;
-    $name = find_file ("/home/anxy/cursos/Operativos/Proyecto/os-projects-los-owos/PintOS/src/userprog/build/loader.bin") if !defined $name;
+    $name = find_file ("/home/runner/PintOs/PintOs/src/userprog/build/loader.bin") if !defined $name;
     die "Cannot find loader\n" if !defined $name;
 
     my ($handle);

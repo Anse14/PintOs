@@ -1,4 +1,5 @@
 #include "userprog/pagedir.h"
+#include "userprog/syscall.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>

@@ -21,13 +21,13 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-/* Starts a new thread running a user program loaded from
-   FILENAME.  The new thread may be scheduled (and may even exit)
-   before process_execute() returns.  Returns the new process's
-   thread id, or TID_ERROR if the thread cannot be created. */
+/* Starts a new thread running a user program loaded from     				*******************
+   FILENAME.  The new thread may be scheduled (and may even exit)			* PROCESS EXECUTE *
+   before process_execute() returns.  Returns the new process's				*******************
+   thread id, or TID_ERROR if the thread cannot be created. */				
 tid_t
 process_execute (const char *file_name) 
-{
+{ //file name -> echo arg1 arg2 .... 
   char *fn_copy;
   tid_t tid;
 
@@ -37,9 +37,20 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  //OsmanCode
+
+  char *auxTok; //rest of string  (arg1 |-> arg2,arg3 ...)
+  file_name  = strtok_r (file_name," ",&auxTok); 
+  //
+
+	//printf("%s\n%s",file_name,  fn_copy);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+
+	//thread_find_child (tid) -> set_parent (thread_current());
+	thread_find_child (tid) -> parent = thread_current ();																								//*******************************
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -54,12 +65,25 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //Code by OSman 2
+ // char* saveptr;
+
+  //file_name = strtok_r ((char*)file_name, " ", &saveptr);
+  //
+
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+ 
+  // by Osman load (const char *file_name, void (**eip) (void), void **esp) 
+
+	
+
+
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,6 +112,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+	struct thread *cur = thread_current ();																																				//**************************
+	sema_down(&cur->child_waiting);																																								//**************************
   return -1;
 }
 
@@ -195,7 +221,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, int argc, char *argv[]);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -220,6 +246,22 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
+
+	// PARSING PARA ARGUMENTOS
+	char *token, *save_ptr;																																																//***********
+	char *argv[25];																																																				//***********
+	int argc = 0;																																																					//***********
+	for(token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))								//***********
+  {																																																											//***********
+    argv[argc] = token;																																																	//***********
+    argc++;																																																							//***********
+  } 											
+  //strlcpy (fn_copy, file_name, PGSIZE);
+  //strlcpy (save_ptr, file_name, sizeof (file_name)+1);  																																												
+  //while ((token = strtok_r(save_ptr, " ", &save_ptr))){
+  //  argv[argc] = token;
+  //  argc++;
+  //}
 
   /* Open executable file. */
   file = filesys_open (file_name);
@@ -302,7 +344,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, (size_t)argc, argv))																																				//*********************
     goto done;
 
   /* Start address. */
@@ -424,20 +466,92 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
+
+
+
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
+void push (void **esp,char* token){
+
+}
+
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, int argc, char *argv[]) 																																							//*********************
 {
   uint8_t *kpage;
   bool success = false;
+
+	int cont = 0; 
+																																																															//*********************
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success)																	
+			{
+				int i = 0;		
+				int j;			
+				char** posis[argc];																																																		
+        //******************
+       // *esp = PHYS_BASE - 12;		//restarle 12 para poder hacer que corra																											
         *esp = PHYS_BASE;
+        
+        /*char my_string[8] = "CSCI350\0";
+        *esp -= sizeof(char)*8;
+        memcpy(*esp, my_string, sizeof(char)*8);
+        hex_dump((uintptr_t)*esp,*esp, sizeof(char)*8, true);*/
+        //******************	
+				
+        
+        for (i = argc-1; i >= 0; i--) 																																													//******************	
+				{																																																												//******************
+						*esp -= sizeof(char);
+						*esp -= strlen(argv[i]);
+						memcpy(*esp, argv[i], strlen(argv[i]) + 1);
+            posis[i] = *esp;
+						cont += (strlen(argv[i]) + 1);
+				}	
+					//word align
+					*esp -= (4-(cont%4));
+					cont += (4-(cont%4));
+
+					//sentinel
+					*esp -= sizeof(size_t);
+					cont += sizeof(size_t);    
+					
+					char** inicial_arg = NULL;
+					for(j = argc-1 ; j >= 0 ; j--)
+					{ 
+						*esp -= 4;
+						cont += 4;
+						memcpy(*esp, &posis[j], 4);
+						/*
+						*esp -= sizeof(void*);
+						cont += sizeof(void*);
+						memcpy(*esp, prueba[j], sizeof(void*));*/
+						/**esp -= sizeof((char*)posis[j]);
+						cont += sizeof((char*)posis[j]);
+						memcpy(*esp, posis[j], sizeof(posis[j]));*/
+					}
+          
+					inicial_arg = *esp;
+          *esp-=sizeof(char**); 
+          cont+=sizeof(char**);
+          memcpy(*esp, &inicial_arg, sizeof(char**));
+					
+					*esp-= 4;
+					cont+= 4;
+					memcpy(*esp, &argc, sizeof(int));
+					
+					*esp-=sizeof(int);
+          cont+=sizeof(int);
+					memset(*esp, NULL, sizeof(int));
+					//hex_dump((uintptr_t)*esp,*esp, cont, true);		
+					//free(posis);    				
+					//free(argv);
+																																		   																								//******************
+			}
       else
         palloc_free_page (kpage);
     }
