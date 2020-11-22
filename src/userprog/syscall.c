@@ -36,7 +36,7 @@ void halt (void)
 
 pid_t exec (const char *cmd_line) 
 {
-	//printf("\n\nVALOR INICIAL : %s\n\n", cmd_line);
+	// printf("\n\nVALOR INICIAL : %s\n\n", cmd_line);
   //acquire_filesys_lock();
   int i = 0;
   int tam = 0;
@@ -140,7 +140,7 @@ int open (const char *file)
 
 int filesize (int fd) {
   struct file* theFile = NULL;
-	theFile = palloc_get_page(0);
+	// theFile = palloc_get_page(0);
 
   struct file_descriptor *fdesc = NULL;
   struct thread* t_cur = thread_current();
@@ -182,10 +182,10 @@ int read (int fd, void *buffer, unsigned size)
     return 0;
   }
   struct file* theFile = NULL;
-	theFile = palloc_get_page(0);
+	// theFile = palloc_get_page(0);
   
   struct file_descriptor *fdesc = NULL;
-	fdesc = palloc_get_page(0);
+	// fdesc = palloc_get_page(0);
   struct thread* t_cur = thread_current();
   struct list_elem *e;
   for(e = list_begin(&t_cur->f_opened); e != list_end(&t_cur->f_opened); e = list_next(e)) {
@@ -216,7 +216,7 @@ int write (int pos, const void *buffer, unsigned size)
 	//check_ptr(buffer);
   //struct list_elem* iter = list_begin(&list_fds);
   struct file* theFile = NULL;
-	theFile = palloc_get_page(0);
+	// theFile = palloc_get_page(0);
 
   struct file_descriptor *fdesc = NULL;
 	fdesc = palloc_get_page(0);
@@ -264,10 +264,10 @@ int write (int pos, const void *buffer, unsigned size)
 
 void seek (int pos, unsigned position) {
   struct file* theFile = NULL;
-	theFile = palloc_get_page(0);
+	// theFile = palloc_get_page(0);
 
   struct file_descriptor *fdesc = NULL;
-	fdesc = palloc_get_page(0);
+	// fdesc = palloc_get_page(0);
   struct thread* t_cur = thread_current();
  	//t_cur->f_opened
   struct list_elem *e;
@@ -292,10 +292,10 @@ void seek (int pos, unsigned position) {
 unsigned tell (int pos) 
 {
   struct file* theFile = NULL;
-	theFile = palloc_get_page(0);
+	// theFile = palloc_get_page(0);
 
   struct file_descriptor *fdesc = NULL;
-	fdesc = palloc_get_page(0);
+	// fdesc = palloc_get_page(0);
   struct thread* t_cur = thread_current();
  	//t_cur->f_opened
   struct list_elem *e;
@@ -327,10 +327,10 @@ void close (int pos)
   struct thread* t_cur = thread_current();
   struct list_elem *e;
   struct file* theFile = NULL;
-  struct file_descriptor *fdesc;
+  struct file_descriptor *fdesc = NULL;
 
-	fdesc = palloc_get_page(0);
-	theFile = palloc_get_page(0);
+	// fdesc = palloc_get_page(0);
+	// theFile = palloc_get_page(0);
 
   for (e = list_begin(&t_cur->f_opened); e != list_end(&t_cur->f_opened); 
 			e = list_next(e)) 
@@ -342,6 +342,7 @@ void close (int pos)
       break;
     }
   }
+  // printf("AAAAAAAA\n");
 
   if (fdesc != NULL)
     theFile = fdesc->ptr;

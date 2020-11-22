@@ -59,6 +59,8 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
+  if(tid == -1)
+    return -1;
   // printf("OWO: %s\n", name);
   // printf("OWO: %d\n", thread_current()->tid);
   //printf("\n\nHOLLAAAA hijo %d\n\n",tid);
