@@ -38,6 +38,9 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+/* LOCK for syscall_FILES*/
+static struct lock syscall_lock;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -91,8 +94,13 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+
   list_init (&ready_list);
   list_init (&all_list);
+  
+  lock_init (&syscall_lock);
+
+  
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -200,6 +208,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  //set_parent(t);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -302,14 +311,36 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
-	struct thread *cur = thread_current ();																																											//*********************
-	sema_up (&cur->parent->child_waiting);																																											//*********************
+	//struct thread *cur = thread_current ();
+  sema_up(&thread_current ()->parent->child_waiting);
+  if(thread_current()->parent) {
+    struct thread_child* temp = palloc_get_page(0);
+    temp->tid = thread_current()->tid;
+    temp->final_status = thread_current()->final_status;
+    // printf("OWO: %d\n", temp->tid);
+    list_push_back(&thread_current()->parent->dead_children, temp);
+  }
+  // struct file* f = thread_current()->executable;
+  // thread_current()->executable = NULL;
+  // if(f) {
+    // file_allow_write(f);
+    // file_close(f);
+  // }
+  //thread_current()->parent->final_status = thread_current()->final_status;
 #endif
+  // file_close(thread_current()->executable);
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+
+  //printf("%s: exit(%d)\n",thread_current()->name,thread_current()->stats);
+  thread_current()->hold_wait = 0;
+  //thread_current()->parent  = NULL;
+  //Veify and set volatile child_waiting
+  //sema_up(&thread_current()->parent->child_waiting);
+  
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -484,11 +515,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-
 	//PARA USER PROG
-	sema_init(&t->child_waiting, 0);																																												//*********************
-	t->parent = NULL;																																																				//*********************
-
+	sema_init(&t->child_waiting, 0);
+	t->parent = NULL;
+  // t->executable = NULL;
+	t->fd = 2;
+  t->hold_wait=0;
+	list_init (&t->f_opened);
+	list_init (&t->dead_children);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -606,31 +640,38 @@ allocate_tid (void)
 }
 
 
-void 																																																											//*********************
-set_parent (struct thread* t) 																																														//*********************
-{																																																													//*********************
-  enum intr_level old_level = intr_disable ();																																						//*********************
-	struct thread *cur = thread_current ();																																									//*********************
-	cur->parent = t;																																																				//*********************
-	intr_set_level (old_level);																																															//*********************
-}																																																													//*********************
+void
+set_parent (struct thread* t) {
+  enum intr_level old_level = intr_disable ();
+	struct thread *cur = thread_current ();
+	cur->parent = t;
+	intr_set_level (old_level);
+}
 
 
-struct thread* 																																																						//*********************
-thread_find_child (tid_t id) 																																															//*********************
-{																																																													//*********************
-	struct list_elem *e;																																																		//*********************
-  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))																					//*********************
-    {																																																											//*********************
-      struct thread *t = list_entry (e, struct thread, allelem);																													//*********************
-      if (t->tid == id) 																																																	//*********************
-			{																																																										//*********************
-				return t;																																																					//*********************
-			}																																																										//*********************
-    }																																																											//*********************
-	return NULL;																																																						//*********************
-}																																																													//*********************
+struct thread*
+thread_find_child (tid_t id) {
+	struct list_elem *e;
+  for(e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    // printf("OWO: %s\n", t->name);
+    if (t->tid == id) {
+			  return t;
+		}
+  }
+	return NULL;
+}
 
+void get_syslock(){
+ lock_acquire(&syscall_lock);
+}
+void release_syslock(){
+  lock_release(&syscall_lock);
+}
+
+struct list *get_thread_list(void) {
+  return &all_list;
+}
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */

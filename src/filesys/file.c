@@ -2,6 +2,7 @@
 #include <debug.h>
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* An open file. */
 struct file 
@@ -94,8 +95,14 @@ file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs)
 off_t
 file_write (struct file *file, const void *buffer, off_t size) 
 {
+	const char* b = (char*)buffer;
+	//printf("BUFFEEEEEEEEEEEEEEEER : %s\n\n\n\n\n", b);
+	//printf("IDDDDDDDDDDDDD %d \n\n\n", thread_current()->tid);
+	//printf("VIZCARRRRRRRAAAAAAAAAAAAAAAAA \n\n\nSIZE:420-29\n");
   off_t bytes_written = inode_write_at (file->inode, buffer, size, file->pos);
+	//printf("VIZCARRRRRRRAAAAAAAAAAAAAAAAA \n\n\nSIZE:420-30\n");
   file->pos += bytes_written;
+	//printf("VIZCARRRRRRRAAAAAAAAAAAAAAAAA \n\n\nSIZE:420-31\n");
   return bytes_written;
 }
 

@@ -17,4 +17,3 @@ test_main (void)
   if (byte_cnt != sizeof sample - 1)
     fail ("write() returned %d instead of %zu", byte_cnt, sizeof sample - 1);
 }
-

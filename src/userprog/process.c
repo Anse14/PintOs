@@ -21,38 +21,62 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-/* Starts a new thread running a user program loaded from     				*******************
-   FILENAME.  The new thread may be scheduled (and may even exit)			* PROCESS EXECUTE *
-   before process_execute() returns.  Returns the new process's				*******************
-   thread id, or TID_ERROR if the thread cannot be created. */				
+
+/* Starts a new thread running a user program loaded from FILENAME.
+   The new thread may be scheduled (and may even exit) * PROCESS EXECUTE *
+   before process_execute() returns. 
+   Returns the new process's thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
 process_execute (const char *file_name) 
-{ //file name -> echo arg1 arg2 .... 
+{ //file name -> echo arg1 arg2 ....   
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
+
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   //OsmanCode
 
-  char *auxTok; //rest of string  (arg1 |-> arg2,arg3 ...)
-  file_name  = strtok_r (file_name," ",&auxTok); 
-  //
+/*
+  char s[] = "  String to  tokenize. ";
+  char *token, *save_ptr;
 
+  for (token = strtok_r (s, " ", &save_ptr); token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr))
+    printf ("'%s'\n", token);
+*/
+
+  char *name, *auxTok; //rest of string  (arg1 |-> arg2,arg3 ...)
+  // printf("\n\nVALOR INICIAL : %s\n\n", file_name);
+	// printf ("\n\nHOLA1\n");	
+  name  = strtok_r (file_name, " ", &auxTok);
+  // printf ("\nHOLA2\n\n");	
 	//printf("%s\n%s",file_name,  fn_copy);
+  //printf("\n\nHOLLAAAA papa %d\n\n",thread_current()->tid);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-
+  tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
+  // printf("OWO: %s\n", name);
+  // printf("OWO: %d\n", thread_current()->tid);
+  //printf("\n\nHOLLAAAA hijo %d\n\n",tid);
 	//thread_find_child (tid) -> set_parent (thread_current());
-	thread_find_child (tid) -> parent = thread_current ();																								//*******************************
+  struct thread* hijo = thread_find_child (tid);
+	hijo-> parent = thread_current ();
+  // printf("ID: %d\n", hijo->tid);
+	// printf("HSHSHS: %s\n", llap);
+  // hijo->executable = f;
+  // if(hijo->executable)
+    // file_deny_write(hijo->executable);
+  // printf("UWU: %s\n", name);
+  // printf("ID: %d\n", hijo->tid);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+	
+  sema_down(&thread_current()->child_waiting);
   return tid;
 }
 
@@ -61,15 +85,12 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
 
-  //Code by OSman 2
- // char* saveptr;
-
-  //file_name = strtok_r ((char*)file_name, " ", &saveptr);
-  //
+//  printf("\n\nOWOOOOOOOO %s\n\n",*file_name);
 
 
   /* Initialize interrupt frame and load executable. */
@@ -87,8 +108,12 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  
+   
+  if (!success){
     thread_exit ();
+  } 
+    
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -109,13 +134,67 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+
+
+/*
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-	struct thread *cur = thread_current ();																																				//**************************
-	sema_down(&cur->child_waiting);																																								//**************************
+	struct thread *cur = thread_current ();
+	sema_down(&cur->child_waiting);
   return -1;
+}*/
+
+
+int
+process_wait (tid_t child_tid ) 
+{ 
+  
+  struct thread *cur = thread_current ();
+  // printf("CHILD: %d\n", child_tid);
+  // printf("CURR_FIN: %s\n", thread_current()->name);
+  // printf("CURR_FIN: %d\n", thread_current()->final_status);
+  struct thread *is_child = thread_find_child (child_tid);
+  // intr_enable ();
+  // printf("\n\nHOLLAAAA hijo__wait_thread %d\n\n",is_child->tid);
+  //printf("\n\nHOLLAAAA padre__wait_thread %d\n\n",is_child->parent->tid);
+  
+  //printf("\nOWO\n");
+  if(is_child==NULL)
+	{
+    // printf("\n\nAQUI ESTOY, SOY EL ERROR: %s\n\n", thread_current()->name);
+    // return thread_current()->final_status;
+    struct list* dc = &thread_current()->dead_children;
+    struct list_elem *e;
+
+    for(e = list_begin(dc); e != list_end(dc); e = list_next(e)) {
+      struct thread_child* temp = list_entry(e, struct thread_child, elem);
+      // printf("AAAAAA: %d\n", temp->tid);
+      if(temp->tid == child_tid) {
+        list_remove(temp);
+        int final_status = temp->final_status;
+        // free(temp);
+        return final_status;
+      }
+    }
+    return -1;
+  }
+  else 
+	{
+    if (is_child -> hold_wait != 0 )
+		{
+      return -1; 
+    } 
+		else
+		{
+			is_child->hold_wait = 1;
+			int* status = is_child->final_status;
+			sema_down(&cur->child_waiting);
+			return thread_current()->final_status;
+    }
+  }
 }
+
 
 /* Free the current process's resources. */
 void
@@ -123,6 +202,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  //OBs1 REMOVE DE LIST
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -140,6 +220,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  //cerramos ejecutable MISS
 }
 
 /* Sets up the CPU for running user code in the current
@@ -234,6 +315,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -255,14 +337,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   {																																																											//***********
     argv[argc] = token;																																																	//***********
     argc++;																																																							//***********
-  } 											
+  } 							
+  		
   //strlcpy (fn_copy, file_name, PGSIZE);
   //strlcpy (save_ptr, file_name, sizeof (file_name)+1);  																																												
   //while ((token = strtok_r(save_ptr, " ", &save_ptr))){
   //  argv[argc] = token;
   //  argc++;
   //}
-
+  
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -270,6 +353,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+  
+  // file_deny_write(file);
+  // t->executable = file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -286,6 +372,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
+  
   for (i = 0; i < ehdr.e_phnum; i++) 
     {
       struct Elf32_Phdr phdr;
@@ -342,9 +429,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
+  
   /* Set up stack. */
-  if (!setup_stack (esp, (size_t)argc, argv))																																				//*********************
+ 
+  if (!setup_stack (esp, argc, argv))
     goto done;
 
   /* Start address. */
@@ -471,16 +559,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-void push (void **esp,char* token){
 
-}
 
 static bool
 setup_stack (void **esp, int argc, char *argv[]) 																																							//*********************
 {
   uint8_t *kpage;
   bool success = false;
-
 	int cont = 0; 
 																																																															//*********************
 
@@ -577,3 +662,4 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
